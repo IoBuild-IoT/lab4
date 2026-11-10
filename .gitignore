@@ -1,0 +1,5 @@
+secrets.h
+config.local.js
+.pio/
+.DS_Store
+__pycache__/

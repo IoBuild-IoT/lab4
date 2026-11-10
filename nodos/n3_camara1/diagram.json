@@ -1,0 +1,119 @@
+{
+ "version": 1,
+ "author": "G2",
+ "editor": "wokwi",
+ "parts": [
+  {
+   "type": "board-esp32-devkit-c-v4",
+   "id": "esp",
+   "top": 0,
+   "left": 0,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-dht22",
+   "id": "h1",
+   "top": -80,
+   "left": 160,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-slide-switch",
+   "id": "s1",
+   "top": 60,
+   "left": 160,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-buzzer",
+   "id": "z1",
+   "top": 0,
+   "left": 300,
+   "attrs": {
+    "volume": "0.1"
+   }
+  },
+  {
+   "type": "wokwi-servo",
+   "id": "sv",
+   "top": 100,
+   "left": 300,
+   "attrs": {}
+  }
+ ],
+ "connections": [
+  [
+   "esp:TX",
+   "$serialMonitor:RX",
+   "",
+   []
+  ],
+  [
+   "esp:RX",
+   "$serialMonitor:TX",
+   "",
+   []
+  ],
+  [
+   "h1:VCC",
+   "esp:3V3",
+   "red",
+   []
+  ],
+  [
+   "h1:GND",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "h1:SDA",
+   "esp:4",
+   "green",
+   []
+  ],
+  [
+   "s1:1",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "s1:2",
+   "esp:14",
+   "blue",
+   []
+  ],
+  [
+   "z1:1",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "z1:2",
+   "esp:27",
+   "red",
+   []
+  ],
+  [
+   "sv:GND",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "sv:V+",
+   "esp:5V",
+   "red",
+   []
+  ],
+  [
+   "sv:PWM",
+   "esp:13",
+   "orange",
+   []
+  ]
+ ],
+ "dependencies": {}
+}

@@ -1,0 +1,128 @@
+{
+ "version": 1,
+ "author": "G2",
+ "editor": "wokwi",
+ "parts": [
+  {
+   "type": "board-esp32-devkit-c-v4",
+   "id": "esp",
+   "top": 0,
+   "left": 0,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-slide-switch",
+   "id": "s1",
+   "top": -40,
+   "left": 160,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-slide-switch",
+   "id": "s2",
+   "top": 60,
+   "left": 160,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-relay-module",
+   "id": "k1",
+   "top": 0,
+   "left": 300,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-led",
+   "id": "e1",
+   "top": 0,
+   "left": 420,
+   "attrs": {
+    "color": "green"
+   }
+  },
+  {
+   "type": "wokwi-resistor",
+   "id": "r_e1",
+   "top": 60,
+   "left": 420,
+   "attrs": {
+    "value": "220"
+   }
+  }
+ ],
+ "connections": [
+  [
+   "esp:TX",
+   "$serialMonitor:RX",
+   "",
+   []
+  ],
+  [
+   "esp:RX",
+   "$serialMonitor:TX",
+   "",
+   []
+  ],
+  [
+   "s1:1",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "s1:2",
+   "esp:14",
+   "blue",
+   []
+  ],
+  [
+   "s2:1",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "s2:2",
+   "esp:12",
+   "blue",
+   []
+  ],
+  [
+   "k1:VCC",
+   "esp:5V",
+   "red",
+   []
+  ],
+  [
+   "k1:GND",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "k1:IN",
+   "esp:26",
+   "orange",
+   []
+  ],
+  [
+   "e1:A",
+   "r_e1:1",
+   "green",
+   []
+  ],
+  [
+   "r_e1:2",
+   "esp:27",
+   "green",
+   []
+  ],
+  [
+   "e1:C",
+   "esp:GND.1",
+   "black",
+   []
+  ]
+ ],
+ "dependencies": {}
+}

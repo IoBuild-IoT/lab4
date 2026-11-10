@@ -1,0 +1,152 @@
+{
+ "version": 1,
+ "author": "G2",
+ "editor": "wokwi",
+ "parts": [
+  {
+   "type": "board-esp32-devkit-c-v4",
+   "id": "esp",
+   "top": 0,
+   "left": 0,
+   "attrs": {}
+  },
+  {
+   "type": "wokwi-ds18b20",
+   "id": "t1",
+   "top": -80,
+   "left": 160,
+   "attrs": {
+    "deviceID": "010203040502",
+    "temperature": "3"
+   }
+  },
+  {
+   "type": "wokwi-resistor",
+   "id": "r_t1",
+   "top": -120,
+   "left": 220,
+   "attrs": {
+    "value": "4700"
+   }
+  },
+  {
+   "type": "wokwi-ds18b20",
+   "id": "t2",
+   "top": 60,
+   "left": 160,
+   "attrs": {
+    "deviceID": "010203040503",
+    "temperature": "22"
+   }
+  },
+  {
+   "type": "wokwi-resistor",
+   "id": "r_t2",
+   "top": 20,
+   "left": 220,
+   "attrs": {
+    "value": "4700"
+   }
+  },
+  {
+   "type": "wokwi-relay-module",
+   "id": "k1",
+   "top": 0,
+   "left": 300,
+   "attrs": {}
+  }
+ ],
+ "connections": [
+  [
+   "esp:TX",
+   "$serialMonitor:RX",
+   "",
+   []
+  ],
+  [
+   "esp:RX",
+   "$serialMonitor:TX",
+   "",
+   []
+  ],
+  [
+   "t1:GND",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "t1:VCC",
+   "esp:3V3",
+   "red",
+   []
+  ],
+  [
+   "t1:DQ",
+   "esp:4",
+   "green",
+   []
+  ],
+  [
+   "r_t1:1",
+   "t1:VCC",
+   "red",
+   []
+  ],
+  [
+   "r_t1:2",
+   "t1:DQ",
+   "green",
+   []
+  ],
+  [
+   "t2:GND",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "t2:VCC",
+   "esp:3V3",
+   "red",
+   []
+  ],
+  [
+   "t2:DQ",
+   "esp:16",
+   "green",
+   []
+  ],
+  [
+   "r_t2:1",
+   "t2:VCC",
+   "red",
+   []
+  ],
+  [
+   "r_t2:2",
+   "t2:DQ",
+   "green",
+   []
+  ],
+  [
+   "k1:VCC",
+   "esp:5V",
+   "red",
+   []
+  ],
+  [
+   "k1:GND",
+   "esp:GND.1",
+   "black",
+   []
+  ],
+  [
+   "k1:IN",
+   "esp:26",
+   "orange",
+   []
+  ]
+ ],
+ "dependencies": {}
+}

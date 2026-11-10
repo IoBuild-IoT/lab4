@@ -1,0 +1,45 @@
+// Nodo 3 - Camara 1: DHT22 + puerta. Alarma a 60 s, cierre por servo a 120 s (edge, sin gateway).
+#define NODE_ID "n3"
+#define NODE_KEY KEY_N3
+#include "g2_common.h"
+#include <DHT.h>
+#include <ESP32Servo.h>
+#define PIN_DHT 4
+#define PIN_DOOR 14
+#define PIN_SERVO 13
+#ifndef T_ALARMA_S
+#define T_ALARMA_S 60
+#endif
+#ifndef T_CIERRE_S
+#define T_CIERRE_S 120
+#endif
+DHT dht(PIN_DHT, DHT22); Servo servo;
+float temp = NAN, hum = NAN; uint32_t abierta = 0; bool cerradoForzado = false; String lote = "L-251103-01";
+#define PIN_BUZ 27
+bool alarma = false;
+void salidaAlarma(bool on) { digitalWrite(PIN_BUZ, on); }
+void cerrarPuerta() { servo.write(90); cerradoForzado = true; }
+void abrirPuerta()  { servo.write(0);  cerradoForzado = false; }
+void onMsg(char* t, uint8_t* p, unsigned int n) {
+  JsonDocument d; if (deserializeJson(d, p, n)) return; String m;
+  if (!verifyCmd(d, m)) { g2Alert("orden_rechazada", NODE_ID, "descartada", m.c_str()); return; }   // firma + contador
+  String c = d["cmd"] | "";
+  if (c == "cerrar_puerta") cerrarPuerta(); else if (c == "abrir_puerta") abrirPuerta(); else if (c == "set_lote") { String a = d["arg"] | ""; if (g2LoteOk(a)) lote = a; }   // lote actual asignado por el gateway
+}
+void setup() { Serial.begin(115200); pinMode(PIN_DOOR, INPUT_PULLUP); pinMode(PIN_BUZ, OUTPUT); dht.begin(); servo.attach(PIN_SERVO); abrirPuerta(); g2Wifi(); }
+void loop() {
+  delay(10);  // cede CPU entre lecturas al simular varios ESP32
+  g2Reconnect(onMsg); mqtt.loop(); g2Heartbeat();
+  bool open = digitalRead(PIN_DOOR) == HIGH;           // interruptor abierto = puerta abierta
+  // Episodio de apertura: alarma a T_ALARMA_S y cierre por servo a T_CIERRE_S (una vez por episodio, sin depender
+  // de ordenes previas del gateway); al cerrarse la puerta se rearma todo
+  static bool cierreHecho = false;
+  if (open && !abierta) abierta = millis() | 1; if (!open) { abierta = 0; alarma = false; cierreHecho = false; }
+  uint32_t s = abierta ? (millis() - abierta) / 1000 : 0;
+  if (open && s >= T_ALARMA_S && !alarma) { alarma = true; g2Alert("puerta_abierta", NODE_ID, "alarma", "puerta abierta >60 s"); }
+  if (open && s >= T_CIERRE_S && !cierreHecho) { cierreHecho = true; cerrarPuerta(); g2Alert("puerta_abierta", NODE_ID, "servo_cierra", "puerta abierta >120 s, cierre local sin gateway"); }
+  salidaAlarma(alarma);
+  static uint32_t tr = 0, tp = 0;
+  if (millis() - tr > 2000) { tr = millis(); float t = dht.readTemperature(), h = dht.readHumidity(); if (!isnan(t) && t > -40 && t < 60) temp = t; if (!isnan(h)) hum = h; }
+  if (millis() - tp > 2000) { tp = millis(); pubSigned("datos", lote.c_str(), temp, "C", isnan(temp) ? "bad" : "ok"); pubSigned("datos", lote.c_str(), open ? 1 : 0, "puerta", "ok"); }
+}

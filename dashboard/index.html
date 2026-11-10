@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G2 Cadena de Frío — Dashboard Industrial</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#1d2733;--mut:#5d6b7a;--line:#d9e0e7;--ok:#2e8b57;--warn:#d98e04;--bad:#c93a3a;--acc:#2a6fb0}
+@media(prefers-color-scheme:dark){:root{--bg:#10161d;--card:#18212b;--ink:#e6edf3;--mut:#93a1b0;--line:#2b3846;--ok:#4cc38a;--warn:#f0b429;--bad:#ff6b6b;--acc:#5aa9f0}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,sans-serif;padding:0 16px 40px}
+header{max-width:1100px;margin:0 auto;padding:16px 0 8px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+h1{font-size:18px;margin:0}main{max-width:1100px;margin:0 auto}
+nav{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px}
+nav button{background:none;border:0;border-bottom:3px solid transparent;color:var(--mut);padding:10px 14px;font:inherit;cursor:pointer}
+nav button.on{color:var(--ink);border-color:var(--acc);font-weight:600}
+.tab{display:none}.tab.on{display:block}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.card h3{margin:0 0 6px;font-size:14px}.mut{color:var(--mut)}.big{font-size:22px;font-weight:600}
+.pill{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;border:1px solid var(--line)}
+.on_{background:var(--ok);color:#fff;border-color:var(--ok)}.off_{background:var(--bad);color:#fff;border-color:var(--bad)}.unk{color:var(--mut)}
+table{border-collapse:collapse;width:100%}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-weight:600}
+.scroll{overflow-x:auto}
+button.atk{background:var(--bad);color:#fff;border:0;border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit;margin-top:6px}
+button.sec{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit}
+#log,#alerts,#acts{max-height:260px;overflow:auto;font:12px/1.5 ui-monospace,monospace}
+#alerts:empty::before{content:"Esperando eventos del proceso.";color:var(--mut)}
+#acts:empty::before{content:"Esperando órdenes y lecturas de confirmación.";color:var(--mut)}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1 1 320px}
+.flow{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.st{padding:8px 12px;border-radius:8px;border:2px solid var(--line);background:var(--card);min-width:110px;text-align:center}
+.st.act{border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,var(--card))}.st b{display:block}
+.bar{height:16px;border-radius:4px;background:var(--acc);min-width:2px}.bar.b{background:var(--ok)}
+.layer{border-left:6px solid var(--acc);padding:8px 12px;margin:6px 0;background:var(--card);border-radius:0 8px 8px 0}
+iframe{width:100%;height:260px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.flag{font-size:12px;color:var(--warn)}
+
+/* --- TFT Display Styles --- */
+.tft-bezel{background:#11161d;padding:10px;border-radius:12px;box-shadow:inset 0 1px 3px rgba(255,255,255,0.1),0 6px 18px rgba(0,0,0,0.5);border:3px solid #283340;display:inline-block;width:100%;max-width:360px}
+.tft-screen{background:#000;border:1px solid #333;font-family:ui-monospace,"Courier New",monospace;font-size:11px;color:#fff;height:240px;position:relative;overflow:hidden;border-radius:4px;display:flex;flex-direction:column;justify-content:space-between}
+.tft-hdr{background:#2e8b57;color:#000;font-weight:bold;font-size:12px;padding:4px 6px;display:flex;justify-content:space-between;transition:background 0.3s}
+.tft-nodes{display:grid;grid-template-columns:repeat(6,1fr);padding:6px 2px;gap:2px;text-align:center}
+.tft-col{padding:2px}
+.tft-lbl{font-size:9px;color:#888;font-weight:bold}
+.tft-val{font-size:12px;font-weight:bold;color:#4cc38a;margin:2px 0}
+.tft-sub{font-size:8px;color:#aaa}
+.tft-div{border-bottom:1px solid #333;margin:2px 0}
+.tft-batch-hdr{font-size:8px;color:#888;padding:2px 6px}
+.tft-batch-row{font-size:9px;color:#4cc38a;padding:2px 6px;white-space:pre}
+.tft-status-bar{background:#151515;border-top:1px solid #333;color:#4cc38a;font-size:10px;padding:4px 6px;font-weight:bold;display:flex;justify-content:space-between}
+</style></head><body>
+<header><h1>Agroexportadora Valle de Ica — Cadena de frío (G2)</h1>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+  <span id="ts_header_badge" class="pill on_" style="font-weight:600">ThingSpeak: Canal 3546657</span>
+  <span id="conn" class="pill unk">MQTT: iniciando…</span>
+  <button class="sec" id="demo">Modo demo (sin broker)</button>
+</div></header>
+<main>
+<nav id="nav"></nav>
+
+<section class="tab" id="t1">
+<div class="row"><div class="card"><h3>Contexto</h3><p>Espárrago y palta, temporada de 24 h con exterior &gt; 38 °C. El espárrago debe enfriarse en <b>&lt; 2 h</b> desde la cosecha y mantenerse a <b>0–2 °C</b> hasta el contenedor.</p><p>Hoy la cadena se registra en planillas cada 4 h: <b>no se sabe en qué punto ni cuánto tiempo</b> se rompe.</p></div>
+<div class="card"><h3>Cifras</h3><p class="big">3 lotes · USD 75 000</p><p class="mut">rechazados por el comprador europeo en la última temporada + riesgo de perder la certificación. (Empresa y cifras ficticias.)</p></div></div>
+<div class="grid" style="margin-top:12px">
+<div class="card"><h3>Causas</h3><ul><li>Puertas abiertas más de lo necesario en la carga</li><li>Producto esperando en andén sin control</li><li>3 marcas de cámaras sin registro común</li><li>Apagones sin alerta oportuna</li></ul></div>
+<div class="card"><h3>Restricciones</h3><ul><li>WAN ≤ S/ 150 al mes</li><li>Prohibido LoRa (aseguradora)</li><li>Detección y actuación sin internet ni red eléctrica</li></ul></div>
+<div class="card"><h3>Reto</h3><p>¿En qué capa (edge o fog) y con qué regla detectar la ruptura, localizarla y actuar antes de que el lote salga de rango, con falsas alarmas que no interrumpan el despacho?</p></div></div>
+</section>
+
+<section class="tab" id="t2">
+<div class="row"><div>
+<div class="layer"><b>Cloud</b> — ThingSpeak: historia, reporte por lote, acceso remoto (Int. 7)</div>
+<div class="layer" style="border-color:#7a6fd0"><b>Fog</b> — Gateway: seguimiento por lote, localiza la ruptura, grupo electrógeno, registro sin WAN, TFT (Int. 7)</div>
+<div class="layer" style="border-color:var(--ok)"><b>Edge</b> — Decisión local en cada nodo: alarma, cierre de puerta, modo seguro (cada dueño)</div>
+<div class="layer" style="border-color:var(--warn)"><b>Embedded</b> — Firmware ESP32: lectura, temporización, firma HMAC y publicación</div>
+<div class="layer" style="border-color:#8a7a5a"><b>Device</b> — DS18B20, DHT22, interruptores, PIR, relés, servos, buzzer, LED/NeoPixel</div>
+</div>
+<div class="card scroll"><h3>Parte del problema que resuelve cada nodo</h3><table><tr><th>#</th><th>Nodo</th><th>Resuelve</th><th>Actúa</th></tr>
+<tr><td>1</td><td>Recepción</td><td>Registro de lote y T° inicial (trazabilidad)</td><td>LED RGB semáforo</td></tr>
+<tr><td>2</td><td>Hidroenfriador</td><td>Enfriar &lt; 2 h</td><td>Relé bomba</td></tr>
+<tr><td>3</td><td>Cámara 1</td><td>Evita pérdida por puerta abierta</td><td>Buzzer + servo</td></tr>
+<tr><td>4</td><td>Cámara 2</td><td>Recupera T° tras apertura</td><td>Relé ventilador + servo</td></tr>
+<tr><td>5</td><td>Andén</td><td>Tiempo de espera fuera del frío</td><td>LED RGB</td></tr>
+<tr><td>6</td><td>Energía</td><td>Apagón y respaldo del frío</td><td>Relé grupo + LED</td></tr>
+<tr><td>7</td><td>Gateway</td><td>Sigue el lote, localiza, coordina sin internet</td><td>TFT + NeoPixel</td></tr></table></div></div>
+<div class="card" style="margin-top:12px"><h3>Diagrama de Conexiones Cirkit (Paso 8)</h3>
+<p class="mut">Esquema circuital de interconexión con sensores, actuadores y tipos de señal (1-Wire, Digital, PWM, I2C, SPI).</p>
+<img src="../docs/cirkit.png" alt="Diagrama Cirkit" style="width:100%;border-radius:8px;border:1px solid var(--line);margin-top:6px">
+</div>
+</section>
+
+<section class="tab" id="t3">
+<div class="row">
+<div class="card" style="flex:2 1 450px"><h3>Recorrido del lote <span class="mut" id="loteId"></span></h3><div class="flow" id="flow"></div><p class="mut" id="loteInfo">Esperando datos…</p></div>
+<div class="card" style="flex:1 1 340px">
+<h3>Pantalla TFT del Gateway (ILI9341 - Paso 12)</h3>
+<div class="tft-bezel">
+  <div class="tft-screen">
+    <div id="tft-hdr" class="tft-hdr"><span>G2 GW --:--:--</span><span>M:AUTO LOC</span></div>
+    <div class="tft-nodes">
+      <div class="tft-col"><div class="tft-lbl">REC</div><div class="tft-val" id="tft_n1">--</div><div class="tft-sub">pulpa</div></div>
+      <div class="tft-col"><div class="tft-lbl">HID</div><div class="tft-val" id="tft_n2">--</div><div class="tft-sub">agua</div></div>
+      <div class="tft-col"><div class="tft-lbl">CA1</div><div class="tft-val" id="tft_n3">--</div><div class="tft-sub" id="tft_n3_sub">puerta</div></div>
+      <div class="tft-col"><div class="tft-lbl">CA2</div><div class="tft-val" id="tft_n4">--</div><div class="tft-sub" id="tft_n4_sub">fan</div></div>
+      <div class="tft-col"><div class="tft-lbl">AND</div><div class="tft-val" id="tft_n5">--</div><div class="tft-sub">tiempo</div></div>
+      <div class="tft-col"><div class="tft-lbl">ENE</div><div class="tft-val" id="tft_n6" style="color:#4cc38a">RED</div><div class="tft-sub" id="tft_n6_sub">norm</div></div>
+    </div>
+    <div class="tft-div"></div>
+    <div class="tft-batch-hdr">Lote         Etapa  Fuera/Ppto  REC  HID  CAM  AND</div>
+    <div id="tft-batch-row" class="tft-batch-row">L-261110-01  ---     0/120       0    0    0    0</div>
+    <div id="tft-status-bar" class="tft-status-bar"><span>ESTADO: NORMAL (0-2 °C)</span><span id="tft-buzz">BUZZ: OFF</span></div>
+  </div>
+</div>
+</div>
+</div>
+<h3 style="margin:16px 0 8px">Nodos (Panel por Integrante)</h3><div class="grid" id="nodes"></div>
+<div class="row" style="margin-top:12px"><div class="card"><h3>Secuencia: detecta → decide → actúa → confirma</h3><div id="alerts"></div></div>
+<div class="card"><h3>Actuadores / confirmaciones</h3><div id="acts"></div></div></div>
+</section>
+
+<section class="tab" id="t4">
+<p class="mut">Los ataques se envían <b>sin clave</b> (la página no tiene las claves de los nodos). El rechazo lo reportan el nodo atacado y el gateway; abajo debe verse hora, nodo, tipo, acción y motivo, y que el frío y el respaldo siguieron operando.</p>
+<div class="grid" id="atks"></div>
+<div class="row" style="margin-top:12px"><div class="card"><h3>Registro de eventos de seguridad</h3><div class="scroll"><table><thead><tr><th>Hora</th><th>Nodo</th><th>Tipo</th><th>Acción</th><th>Motivo</th></tr></thead><tbody id="sec"></tbody></table></div></div>
+<div class="card"><h3>¿El frío y el respaldo siguieron funcionando?</h3><div id="proof" class="mut">Sin datos aún.</div></div></div>
+</section>
+
+<section class="tab" id="t5">
+<div class="row"><div class="card"><h3>A (edge, umbral) frente a B (fog, acumulada por lote)</h3><div id="cmp" class="scroll"></div><p class="flag" id="resnote"></p></div>
+<div class="card"><h3>Barras</h3><div id="bars"></div></div></div>
+<div class="card" style="margin-top:12px"><h3>Alternativa elegida</h3><p id="pick"></p></div>
+
+<div class="card" style="margin-top:12px">
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+  <h3 style="margin:0">ThingSpeak — Monitoreo Histórico en la Nube (Paso 12)</h3>
+  <span class="pill on_" style="font-weight:600">Canal 3546657: Conectado</span>
+</div>
+<div style="display:flex;gap:8px;align-items:center;margin:10px 0 12px;flex-wrap:wrap">
+  <input type="text" id="ts_chan_in" value="3546657" placeholder="ID Canal" style="padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:120px">
+  <input type="text" id="ts_key_in" value="" placeholder="Read API Key" style="padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--bg);color:var(--ink);width:180px">
+  <button class="sec" id="ts_save_btn">Guardar</button>
+  <button class="sec" id="ts_refresh_btn" onclick="fetchThingSpeakTable();renderThingSpeak()">🔄 Refrescar Tabla</button>
+  <a href="https://thingspeak.com/channels/3546657" target="_blank" class="sec" style="text-decoration:none">🌐 Abrir en ThingSpeak.com ↗</a>
+</div>
+<div id="ts" class="mut">Cargando gráfico de ThingSpeak...</div>
+<div id="ts_table_container" style="margin-top:16px"></div>
+</div>
+</section>
+</main>
+<script src="vendor/mqtt.min.js"></script><script src="config.local.js"></script><script src="resultados.js"></script>
+<script>
+const CFG = Object.assign({MQTT_WS:"wss://broker.hivemq.com:8884/mqtt",ROOT:"upc/g2",TS_CHANNEL:"3546657",TS_READ_KEY:""}, window.G2_CFG||{});
+try{const savedCh=localStorage.getItem("g2_ts_ch"),savedK=localStorage.getItem("g2_ts_k");if(savedCh && savedCh!=="0000000"){CFG.TS_CHANNEL=savedCh;CFG.TS_READ_KEY=savedK||""}else{localStorage.removeItem("g2_ts_ch");localStorage.removeItem("g2_ts_k")}}catch(e){}
+
+const NODES={n1:"Recepción",n2:"Hidroenfriador",n3:"Cámara 1",n4:"Cámara 2",n5:"Andén",n6:"Energía",gw:"Gateway"};
+const ST={}, LAST={};
+const $=s=>document.querySelector(s), esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const tabs=["1. Problema","2. Solución","3. Operación en vivo","4. Ciberseguridad","5. Resultados"];
+tabs.forEach((t,i)=>{const b=document.createElement("button");b.textContent=t;b.onclick=()=>show(i+1);b.id="b"+(i+1);$("#nav").append(b)});
+function show(n){document.querySelectorAll(".tab").forEach((e,i)=>e.classList.toggle("on",i+1===n));document.querySelectorAll("nav button").forEach((e,i)=>e.classList.toggle("on",i+1===n));try{location.hash="t"+n}catch(e){}}
+show(+(location.hash.match(/\d/)||[1])[0]);
+
+// --- nodos
+for(const k in NODES){ST[k]={estado:"?",vals:{},ts:0};const c=document.createElement("div");c.className="card";c.id="nd_"+k;$("#nodes").append(c)}
+
+function renderNodes(){
+ for(const k in NODES){
+  const s=ST[k],u=s.estado==="online"?"on_":s.estado==="offline"?"off_":"unk";
+  $("#nd_"+k).innerHTML=`<h3>${k.toUpperCase()} · ${NODES[k]} <span class="pill ${u}">${s.estado}</span></h3>`+(Object.entries(s.vals).map(([u,v])=>`<div><span class="mut">${esc(u)}</span> <b>${esc(v)}</b></div>`).join("")||'<span class="mut">sin datos</span>');
+ }
+ renderTFT();
+}
+
+// --- réplica pantalla TFT (ILI9341) del Gateway
+let currentStage="", activeLote="", minFueraTotal=0, budget=120, minEtapa=[0,0,0,0], tftAlertMsg="";
+let liveLote=null;
+function renderTFT(){
+ const now=new Date().toLocaleTimeString();
+ const mode=demoRunning?"DEMO":cli?.connected?"MQ":"LOC";
+ $("#tft-hdr").innerHTML=`<span>G2 GW ${now}</span><span>M:AUTO ${mode}</span>`;
+ const t1=ST.n1.vals.C, t2=ST.n2.vals.C, t3=ST.n3.vals.C, t4=ST.n4.vals.C, t5=ST.n5.vals.C;
+ if(t1!==undefined){$("#tft_n1").textContent=t1;$("#tft_n1").style.color=t1>2.0?"#ff6b6b":"#4cc38a"}
+ if(t2!==undefined){$("#tft_n2").textContent=t2;$("#tft_n2").style.color=t2>2.0?"#ff6b6b":"#4cc38a"}
+ if(t3!==undefined){$("#tft_n3").textContent=t3;$("#tft_n3").style.color=t3>2.0?"#ff6b6b":"#4cc38a"}
+ if(t4!==undefined){$("#tft_n4").textContent=t4;$("#tft_n4").style.color=t4>2.0?"#ff6b6b":"#4cc38a"}
+ if(t5!==undefined){$("#tft_n5").textContent=t5}
+ const r=ST.n6.vals.red, g=ST.n6.vals.grupo;
+ if(r!==undefined){
+   const isRed=r==1;const isGrp=g==1;
+   $("#tft_n6").textContent=isRed?"RED":isGrp?"GRP":"OFF";
+   $("#tft_n6").style.color=isRed?"#4cc38a":isGrp?"#f0b429":"#ff6b6b";
+ }
+ const stMap={recepcion:"REC",hidro:"HID",camara:"CAM",anden:"AND"};
+ const etStr=(stMap[currentStage]||"—").padEnd(6);
+ const fuoriStr=String(Math.round(minFueraTotal)).padStart(3)+"/"+budget;
+ $("#tft-batch-row").textContent=activeLote
+  ? `${activeLote.padEnd(12)} ${etStr} ${fuoriStr}     ${minEtapa.map(m=>String(Math.round(m)).padStart(4)).join(" ")}`
+  : "Sin lote activo";
+ 
+ const isCrit=minFueraTotal>=budget || (r!==undefined && g!==undefined && Number(r)===0 && Number(g)===0);
+ const isWarn=minFueraTotal>=budget*.8 || (t3>2.0 || t4>2.0);
+ $("#tft-hdr").style.background=isCrit?"#ff6b6b":isWarn?"#f0b429":"#2e8b57";
+ $("#tft-hdr").style.color=isCrit||isWarn?"#000":"#fff";
+ const status=tftAlertMsg||(isCrit?"ESTADO: CRÍTICO":isWarn?"ESTADO: ALERTA":"ESTADO: SIN ALERTA");
+ $("#tft-status-bar").innerHTML=`<span>${esc(status)}</span><span>BUZZ: ${isWarn||isCrit?'ON':'OFF'}</span>`;
+}
+
+const STAGES=["recepcion","hidro","camara","anden"];
+const STAGE_LABELS={recepcion:"Recepción",hidro:"Hidroenfriado",camara:"Cámara",anden:"Andén"};
+function renderFlow(){
+ $("#flow").innerHTML=STAGES.map(s=>`<div class="st ${s===currentStage?"act":""}"><b>${STAGE_LABELS[s]}</b>${s===currentStage?"actual":""}</div>`).join('<span class="mut">→</span>');
+ $("#loteId").textContent=activeLote?"· "+activeLote:"";
+ $("#loteInfo").textContent=currentStage
+  ? `${Math.round(minFueraTotal)} de ${budget} min fuera de rango${!demoRunning&&(!cli?.connected||ST.gw.estado==="offline")?" · Último estado recibido":""}`
+  : activeLote?"Recepción reporta el lote. Esperando su estado desde el gateway.":"Esperando que Recepción registre un lote.";
+ renderTFT();
+}
+
+function logEvent(panel,label,detail){
+ const list=$(panel);
+ list.insertAdjacentHTML("afterbegin",`<div><span class="mut">${new Date().toLocaleTimeString()}</span> · <b>${demoRunning?"Demo · ":""}${esc(label)}</b> · ${esc(detail)}</div>`);
+ if(list.children.length>80)list.lastElementChild.remove();
+}
+
+function showLote(m){
+ const lote=m?.lote||"", etapa=m?.etapa||"";
+ if(etapa&&(activeLote!==lote||currentStage!==etapa)){
+  logEvent("#alerts","Gateway · etapa",`${lote} · ${STAGE_LABELS[etapa]}`);
+ }
+ activeLote=lote;
+ currentStage=etapa;
+ minFueraTotal=Number.isFinite(m?.min_fuera)?m.min_fuera:0;
+ budget=Number.isFinite(m?.presupuesto)&&m.presupuesto>0?m.presupuesto:120;
+ minEtapa=Array.isArray(m?.min_etapa)?STAGES.map((_,i)=>Number.isFinite(m.min_etapa[i])?m.min_etapa[i]:0):[0,0,0,0];
+ tftAlertMsg=m?.ruptura?"ALERTA: RUPTURA DE FRÍO":m?.prealerta?"PREALERTA: PRESUPUESTO DE FRÍO":"";
+ renderFlow();
+}
+
+function addAlert(a){
+ const t=a.hora||new Date().toLocaleTimeString();
+ const decision=(demoRunning?"Demo · ":"")+(a.id==="gw"&&a.cat==="proceso"?"Decide · ":"");
+ const line=`<div><span class="mut">${esc(t)}</span> <b>${decision}${esc(a.nodo||a.id)}</b> ${esc(a.tipo)} → ${esc(a.accion)} <span class="mut">(${esc(a.motivo)})</span></div>`;
+ $("#alerts").insertAdjacentHTML("afterbegin",line);
+ const seg=(a.cat==="seguridad")||/orden_|lote_falsificado|falso|inundacion|suplant|firma|config|peligrosa/.test(a.tipo||"");
+ if(seg){$("#sec").insertAdjacentHTML("afterbegin",`<tr><td>${esc(t)}</td><td>${esc(a.nodo||a.id)}</td><td>${esc(a.tipo)}</td><td>${esc(a.accion)}</td><td>${esc(a.motivo)}</td></tr>`);proof()}
+ if(/puerta|servo|gen|grupo|apagon|respaldo|bomba|ventilador/.test((a.tipo||"")+(a.accion||""))){
+   logEvent("#acts","Evento",`${a.nodo||a.id} · ${a.tipo} · ${a.accion}`);
+ }
+}
+
+function proof(){
+ const f=ST.n3.vals.C??ST.n4.vals.C,r=ST.n6.vals.red,g=ST.n6.vals.grupo;
+ $("#proof").innerHTML=`Cámara T: <b>${esc(f??"—")} °C</b> · Red: <b>${esc(r??"—")}</b> · Grupo: <b>${esc(g??"—")}</b><br>Telemetría real continuó tras los ataques: ${Date.now()-LASTDATA<6000?'<b style="color:var(--ok)">sí</b>':'<b style="color:var(--bad)">no</b>'}`;
+}
+let LASTDATA=0;
+
+// --- mqtt
+function onMsg(topic,buf,simulated=false){
+ if(simulated!==demoRunning)return;
+ const prefix=CFG.ROOT+"/";
+ if(!topic.startsWith(prefix))return;
+ let m;const [nodo,kind]=topic.slice(prefix.length).split("/");const txt=buf.toString();
+ if(kind==="estado"){
+   if(Object.hasOwn(ST,nodo)&&["online","offline"].includes(txt.trim()))ST[nodo].estado=txt.trim();
+   renderNodes();if(nodo==="gw")renderFlow();return;
+ }
+ try{m=JSON.parse(txt)}catch{return}
+ if(!m||typeof m!=="object")return;
+ if(kind==="lote"&&nodo==="gw"&&m.id==="gw"){
+   if(typeof m.lote!=="string"||(m.lote!==""&&(!/^L-\d{6}-\d{2}$/.test(m.lote)||!STAGES.includes(m.etapa))))return;
+   liveLote=m;
+   if(m.lote||currentStage||!activeLote)showLote(m.lote?m:null);
+ }
+ else if(kind==="datos"&&Object.hasOwn(ST,nodo)){
+   const prev=ST[nodo].vals[m.unidad];
+   ST[nodo].vals[m.unidad]=m.valor;
+   LASTDATA=Date.now();
+   if(!simulated&&nodo==="n1"&&/^L-\d{6}-\d{2}$/.test(m.lote)&&(!liveLote||!liveLote.lote)){
+     if(activeLote!==m.lote)showLote({lote:m.lote});
+   }
+   if(m.calidad==="reg")addAlert({nodo,tipo:"lote_registrado",accion:"registrado",motivo:m.lote});
+   const v=Number(m.valor);
+   const valid=m.calidad==="ok"&&(v===0||v===1)&&m.valor!==""&&m.valor!=null;
+   const changed=prev!==undefined&&Number(prev)!==v;
+   if(valid&&changed&&(nodo==="n3"||nodo==="n4")&&m.unidad==="puerta"){
+     logEvent("#acts","Sensor de puerta",`${NODES[nodo]} · ${v?"abierta":"cerrada"}`);
+   }
+   if(valid&&changed&&nodo==="n6"&&m.unidad==="red"){
+     logEvent("#alerts","Detecta",v?"Red eléctrica restablecida":"Corte de red eléctrica");
+   }
+   if(valid&&changed&&nodo==="n6"&&m.unidad==="grupo"){
+     const detail=v?"N6 reporta grupo en marcha":"N6 reporta grupo detenido";
+     logEvent("#acts","Confirmación de sensor",detail);
+     logEvent("#alerts","Confirma",detail);
+   }
+   renderNodes();
+ }
+ else if(kind==="alerta")addAlert(m);
+ else if(kind==="cmd"){
+   LAST[nodo]=txt;
+   if(m.id==="gw"&&m.dest===nodo&&m.cmd){
+     const detail=`${m.dest} · ${m.cmd} ${m.arg||""}`;
+     logEvent("#acts","Orden MQTT",detail);
+     if(m.cmd!=="set_lote")logEvent("#alerts","Actúa · orden MQTT",detail);
+   }
+ }
+}
+
+let cli=null;
+function mqttStatus(message,style){
+ const badge=$("#conn");
+ badge.textContent="MQTT: "+message;
+ badge.className="pill "+style;
+ badge.title=CFG.MQTT_WS;
+ renderFlow();
+}
+function connect(){
+ mqttStatus("conectando…","unk");
+ try{
+  cli=mqtt.connect(CFG.MQTT_WS,{reconnectPeriod:3000,clientId:"g2-web-"+Math.random().toString(16).slice(2,8)});
+ }catch(error){
+  console.error("Inicio de MQTT:",CFG.MQTT_WS,error);
+  mqttStatus("error de inicio (ver consola)","off_");
+  return;
+ }
+ cli.on("connect",()=>{
+  mqttStatus("conectado","on_");
+  cli.subscribe([...["datos","alerta","estado","cmd"].map(kind=>`${CFG.ROOT}/+/${kind}`),`${CFG.ROOT}/gw/lote`]);
+ });
+ cli.on("close",()=>mqttStatus("sin conexión · reintentando…","off_"));
+ cli.on("error",error=>console.warn("MQTT:",CFG.MQTT_WS,error));
+ cli.on("message",(topic,message)=>onMsg(topic,message));
+}
+function send(n,o,sub="cmd"){
+ const j=typeof o==="string"?o:JSON.stringify(o);
+ if(cli&&cli.connected)cli.publish(`${CFG.ROOT}/${n}/${sub}`,j);
+ else addAlert({nodo:"web",tipo:"sin_conexion",accion:"no enviado",motivo:"MQTT desconectado"});
+}
+
+// --- ataques (uno por integrante)
+const FAKE="deadbeefdeadbeefdeadbeefdeadbeef";
+const ATK=[
+ ["n1","Lote falsificado","Duplicado e inválido",()=>{send("n1",{reg:"L-251103-01"});send("n1",{reg:"HACK!"})}],
+ ["n2","Falso «lote ya enfriado»","Sin firma, incoherente con T° pulpa",()=>send("n2",{id:"gw",dest:"n2",cmd:"lote_enfriado",arg:"",ctr:9999,ts:1,firma:FAKE})],
+ ["n3","Suplantación de la cámara 1","Publica datos con id n3 sin firma válida",()=>send("n3",{id:"n3",lote:"L-251103-01",ts:1,valor:"-5.00",unidad:"C",calidad:"ok",firma:FAKE},"datos")],
+ ["n4","Orden falsa fan_off / replay","Firma falsa, y reenvío de la última orden real",()=>{send("n4",{id:"gw",dest:"n4",cmd:"fan_off",arg:"",ctr:9998,ts:1,firma:FAKE});if(LAST.n4)send("n4",LAST.n4)}],
+ ["n5","Inundación de mensajes","200 msg a 50/s",()=>{let i=0;const t=setInterval(()=>{send("n5",{id:"x",n:i});if(++i>=200)clearInterval(t)},20)}],
+ ["n6","Orden falsa: apagar grupo","En apagón; firma falsa + regla de seguridad",()=>send("n6",{id:"gw",dest:"n6",cmd:"gen_stop",arg:"",ctr:9997,ts:1,firma:FAKE})],
+ ["gw","Cambio de configuración","Sube umbral_max sin firma ni doble confirmación",()=>send("gw",{id:"gw",dest:"gw",cmd:"set",arg:"umbral_max=8",ctr:9996,ts:1,firma:FAKE})]];
+ATK.forEach(([n,t,d,f],i)=>{
+ const c=document.createElement("div");c.className="card";
+ c.innerHTML=`<h3>Int. ${i+1} · ${NODES[n]}</h3><b>${t}</b><div class="mut">${d}</div>`;
+ const b=document.createElement("button");b.className="atk";b.textContent="Lanzar ataque";b.onclick=f;c.append(b);
+ $("#atks").append(c);
+});
+
+// --- resultados
+function renderRes(){
+ const R=window.G2_RES;if(!R){$("#cmp").textContent="Ejecutar: python3 simulador/comparar.py";return}
+ const S=R.resumen,rows=[["Detección de rupturas reales (%)","deteccion_pct"],["Falsas alarmas (%)","falsas_alarmas_pct"],["Localización correcta de la etapa (%)","localizacion_pct"],["Anticipación promedio (min antes del límite)","anticipacion_prom_min"],["Detección→actuación (s, modelado)","latencia_deteccion_actuacion_s"]];
+ $("#cmp").innerHTML="<table><tr><th>Métrica</th><th>A edge</th><th>B fog</th></tr>"+rows.map(([l,k])=>`<tr><td>${l}</td><td>${S.A[k]}</td><td>${S.B[k]}</td></tr>`).join("")+`</table><p class="mut">Parámetros: ${esc(JSON.stringify(R.parametros))}</p>`;
+ $("#bars").innerHTML=[["Falsas alarmas A","falsas_alarmas_pct","A"],["Falsas alarmas B","falsas_alarmas_pct","B"],["Localización A","localizacion_pct","A"],["Localización B","localizacion_pct","B"]].map(([l,k,x])=>`<div>${l} <b>${S[x][k]}%</b><div class="bar ${x==="B"?"b":""}" style="width:${Math.max(1,S[x][k])}%"></div></div>`).join("");
+ $("#resnote").textContent="Latencias y escenarios provienen de 300 corridas montecarlo del simulador industrial.";
+ $("#pick").innerHTML=`<b>B (fog, acumulada por lote)</b>: ${S.B.falsas_alarmas_pct}% de falsas alarmas frente a ${S.A.falsas_alarmas_pct}% de A, y localiza la etapa en ${S.B.localizacion_pct}% frente a ${S.A.localizacion_pct}%. A avisa antes (${S.A.anticipacion_prom_min} min vs ${S.B.anticipacion_prom_min} min) pero casi siempre por falsas alarmas; por eso se mantiene A <i>solo</i> como acción local (puerta/alarma) y B decide el despacho.`;
+}
+renderRes();
+
+// --- ThingSpeak Renderer & Tabla en Vivo
+let tsField = 1;
+function renderThingSpeak(){
+ const ch=CFG.TS_CHANNEL, key=CFG.TS_READ_KEY;
+ $("#ts_chan_in").value=(ch&&ch!=="0000000")?ch:"";
+ $("#ts_key_in").value=key||"";
+ if(ch && ch!=="0000000"){
+   $("#ts").innerHTML=`<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+     <span class="mut" style="font-size:12px">Visualizar Gráfico:</span>
+     <button class="sec" style="font-size:12px;padding:3px 8px;font-weight:${tsField===1?'bold':'normal'};border-color:${tsField===1?'var(--acc)':'var(--line)'}" onclick="tsField=1;renderThingSpeak()">Campo 1: Temperatura (°C)</button>
+     <button class="sec" style="font-size:12px;padding:3px 8px;font-weight:${tsField===2?'bold':'normal'};border-color:${tsField===2?'var(--acc)':'var(--line)'}" onclick="tsField=2;renderThingSpeak()">Campo 2: Humedad (%)</button>
+     <button class="sec" style="font-size:12px;padding:3px 8px;font-weight:${tsField===4?'bold':'normal'};border-color:${tsField===4?'var(--acc)':'var(--line)'}" onclick="tsField=4;renderThingSpeak()">Campo 4: Alarma</button>
+   </div>
+   <iframe src="https://thingspeak.com/channels/${encodeURIComponent(ch)}/charts/${tsField}?results=60&dynamic=true${key?"&api_key="+encodeURIComponent(key):""}"></iframe>`;
+   fetchThingSpeakTable();
+ } else {
+   $("#ts").innerHTML=`<div style="background:var(--card);border:1px dashed var(--line);border-radius:8px;padding:16px;text-align:center">
+   <div style="font-weight:600;margin-bottom:6px">Canal de Nube no configurado</div>
+   <p class="mut" style="margin:0 0 12px;font-size:12px">Ingresa el ID del canal arriba y presiona "Guardar".</p>
+   </div>`;
+   $("#ts_table_container").innerHTML="";
+ }
+}
+
+function fetchThingSpeakTable(){
+ const ch=CFG.TS_CHANNEL, key=CFG.TS_READ_KEY;
+ if(!ch || ch==="0000000") return;
+ const url=`https://api.thingspeak.com/channels/${encodeURIComponent(ch)}/feeds.json?api_key=${encodeURIComponent(key)}&results=10`;
+ fetch(url)
+   .then(r=>r.json())
+   .then(data=>{
+     if(!data || !data.feeds) return;
+     const c=data.channel||{};
+     let html=`<div style="margin-top:16px;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--card)">
+       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+         <div><h4 style="margin:0;font-size:13px">Tabla de Datos Históricos — Canal ${esc(c.id)} (${esc(c.name||'BMS-G01')})</h4>
+         <span class="mut" style="font-size:11px">Última actualización: ${new Date(c.updated_at||Date.now()).toLocaleString()}</span></div>
+         <span class="pill on_" style="font-weight:600">Total Entradas: #${esc(c.last_entry_id||data.feeds.length)}</span>
+       </div>
+       <div class="scroll">
+       <table>
+         <thead>
+           <tr>
+             <th># Entry</th>
+             <th>Fecha y Hora</th>
+             <th>${esc(c.field1||'Temperatura (°C)')}</th>
+             <th>${esc(c.field2||'Humedad (%)')}</th>
+             <th>${esc(c.field3||'RSSI (dBm)')}</th>
+             <th>${esc(c.field4||'Alarma')}</th>
+           </tr>
+         </thead>
+         <tbody>`;
+     const rev=data.feeds.slice().reverse();
+     for(const row of rev){
+       const d=new Date(row.created_at).toLocaleString();
+       html+=`<tr>
+         <td><b>#${esc(row.entry_id)}</b></td>
+         <td class="mut">${esc(d)}</td>
+         <td><b style="color:${parseFloat(row.field1)>2?'var(--bad)':'var(--ok)'}">${esc(row.field1!==null?row.field1+' °C':'—')}</b></td>
+         <td>${esc(row.field2!==null?row.field2+' %':'—')}</td>
+         <td><span class="mut">${esc(row.field3!==null?row.field3+' dBm':'—')}</span></td>
+         <td>${row.field4==1?'<span class="pill off_">Alarma 1</span>':'<span class="pill on_">Normal 0</span>'}</td>
+       </tr>`;
+     }
+     html+=`</tbody></table></div></div>`;
+     $("#ts_table_container").innerHTML=html;
+   })
+   .catch(err=>{
+     console.warn("ThingSpeak feeds fetch:", err);
+     $("#ts_table_container").innerHTML=`<div class="mut" style="font-size:12px;padding:8px">No se pudo cargar la tabla de datos (verifica tu conexión a internet).</div>`;
+   });
+}
+renderThingSpeak();
+setInterval(fetchThingSpeakTable, 20000);
+
+$("#ts_save_btn").onclick=()=>{
+ const ch=$("#ts_chan_in").value.trim(), key=$("#ts_key_in").value.trim();
+ if(!ch){alert("Por favor ingresa un ID de canal válido");return}
+ CFG.TS_CHANNEL=ch; CFG.TS_READ_KEY=key;
+ try{localStorage.setItem("g2_ts_ch",ch);localStorage.setItem("g2_ts_k",key)}catch(e){}
+ renderThingSpeak();
+};
+
+// --- demo (plan C visual sin broker)
+let demoRunning=false, demoTimer=null, liveNodes=null;
+$("#demo").onclick=()=>{
+ if(demoRunning){
+  clearInterval(demoTimer);demoRunning=false;$("#demo").textContent="Modo demo (sin broker)";
+  Object.assign(ST,liveNodes);showLote(liveLote?.lote?liveLote:null);renderNodes();return;
+ }
+ liveNodes=structuredClone(ST);
+ demoRunning=true;$("#demo").textContent="Detener demo";
+ const lote="L-261110-01";
+ showLote({lote,etapa:"recepcion"});
+ const emit=(n,k,m)=>onMsg(`${CFG.ROOT}/${n}/${k}`,JSON.stringify(m),true);
+ for(const k of Object.keys(NODES))ST[k].estado="online";
+ let t=0;
+ demoTimer=setInterval(()=>{
+  t++;
+  const e=(n,u,v)=>emit(n,"datos",{id:n,lote,ts:t,valor:String(v),unidad:u,calidad:"ok"});
+  e("n1","C",(18-Math.min(16,t/2)).toFixed(1));
+  e("n2","C",(2.5-Math.min(1.5,t/3)).toFixed(1));
+  e("n3","C",(1.2+Math.sin(t/4)*0.6).toFixed(2));
+  e("n4","C",(1.4+Math.cos(t/5)*0.5).toFixed(2));
+  e("n5","C",(2.0+Math.sin(t/8)*0.4).toFixed(1));
+  e("n6","red",t%40>25?0:1);
+  e("n6","grupo",t%40>28?1:0);
+  
+  if(t===4)showLote({lote,etapa:"hidro"});
+  if(t===8)emit("n3","alerta",{id:"n3",tipo:"puerta_abierta",accion:"alarma_buzzer",motivo:"puerta abierta >60 s"});
+  if(t===12)showLote({lote,etapa:"camara"});
+  if(t===16){
+   showLote({lote,etapa:"camara",min_fuera:96,min_etapa:[0,0,96,0],prealerta:true});
+   emit("gw","alerta",{id:"gw",cat:"proceso",tipo:"prealerta_frio",nodo:"gw",accion:"alerta",motivo:"96 de 120 min"});
+  }
+  if(t===20)emit("n6","alerta",{id:"n6",tipo:"orden_falsa_grupo",accion:"rechazada",motivo:"firma invalida"});
+  if(t===24)showLote({lote,etapa:"anden",min_fuera:96,min_etapa:[0,0,96,0],prealerta:true});
+ },1000);
+};
+
+renderFlow();
+renderNodes();
+connect();
+</script></body></html>

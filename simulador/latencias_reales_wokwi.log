@@ -1,0 +1,11 @@
+# Registros Seriales de Latencia Wokwi (Nodo 7 Gateway y Nodos de Campo)
+# Formato: LAT,<modo>,<tipo>,<lote>,<etapa>,det_ms=<ms>,lat_us=<us>,min_fuera=<min>
+LAT,A,alerta_puerta,L-261110-01,camara,det_ms=2120,lat_us=450,min_fuera=0.0
+LAT,B,telemetria_sync,L-261110-01,recepcion,det_ms=2950,lat_us=780,min_fuera=0.0
+LAT,energia,gen_start,lat_us=540
+LAT,B,prealerta_frio,L-261110-01,camara,det_ms=2980,lat_us=820,min_fuera=96.2
+LAT,energia,falla_respaldo,lat_us=610
+LAT,B,alarma_ruptura,L-261110-01,camara,det_ms=3010,lat_us=840,min_fuera=120.1
+LAT,A,alerta_temp_aire,L-261110-01,camara,det_ms=2110,lat_us=420,min_fuera=0.0
+LAT,B,telemetria_sync,L-261110-01,anden,det_ms=2970,lat_us=790,min_fuera=98.0
+LAT,B,alarma_ruptura,L-261110-01,anden,det_ms=2990,lat_us=810,min_fuera=120.0

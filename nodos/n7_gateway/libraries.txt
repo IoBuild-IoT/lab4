@@ -1,0 +1,6 @@
+PubSubClient
+ArduinoJson
+RTClib
+Adafruit GFX Library
+Adafruit ILI9341
+Adafruit NeoPixel
